@@ -1,84 +1,64 @@
-import pandas as pd
 import streamlit as st
-import requests
+import sqlite3
 
-# Google スプレッドシートの設定
-sheet_id = "1PmOf1bjCpLGm7DiF7dJsuKBne2XWkmHyo20BS4xgizw"
-sheet_name = "charlas"
-url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet={sheet_name}"
+# データベースに接続
+conn = sqlite3.connect('members.db')
+cursor = conn.cursor()
 
-# スプレッドシートからデータフレームを取得
-response = requests.get(url)
-df = pd.read_csv(pd.compat.StringIO(response.text), dtype=str).fillna("")
+# テーブルの作成
+cursor.execute('''
+    CREATE TABLE IF NOT EXISTS members (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT NOT NULL,
+        password TEXT NOT NULL,
+        email TEXT NOT NULL
+    )
+''')
+conn.commit()
 
-# 対象事業者の各文字列を取得して一意の値を生成
-filter_options = set()
-for item in df["対象事業者"]:
-    options = item.split("／")
-    filter_options.update(options)
+# ユーザー情報の入力フォームを作成
+username = st.text_input("ユーザー名")
+password = st.text_input("パスワード", type="password")
+email = st.text_input("メールアドレス")
 
-# フィルタリング用の選択ボックスを作成
-selected_options = []
-for option in filter_options:
-    selected = st.checkbox(option)
-    if selected:
-        selected_options.append(option)
+# ログイン状態を保持する変数
+logged_in = False
 
-# フィルタリング
-df_search = df[df["対象事業者"].apply(lambda x: all(opt in x.split("／") for opt in selected_options))]
+# フォームの送信ボタンがクリックされた場合の処理
+if st.button("登録"):
+    if username and password and email:
+        # データの挿入
+        cursor.execute('''
+            INSERT INTO members (username, password, email)
+            VALUES (?, ?, ?)
+        ''', (username, password, email))
+        conn.commit()
 
-# 結果の表示
-st.write(df_search)
-
-
-# Show the results and balloons
-st.write(df_search)
-st.balloons()
-
-# Prepare the initial question
-info_to_ask = f"地域は {selected_地域} で {selected_対象事業者} への補助金 {len(df_search)} 個と一致するリスト"
-
-# Get user's input
-user_input = st.text_input("あなたの質問を入力してください", value=info_to_ask)
-
-if st.button("送信"):
-    # Filter the dataframe using the user's input
-    df_search = df[(df["地域"] == selected_地域) & (df["対象事業者"] == selected_対象事業者)]
-
-
-    # Check if the dataframe is empty
-    if df_search.empty:
-        st.write("No matching data found.")
+        st.success("登録が完了しました！")
     else:
-        # If not, use the data to generate a message for GPT-3
-        message = f"I found {len(df_search)} matches for the 地域 '{user_input}'. Here's the first one: {df_search.iloc[0].to_dict()}"
+        st.warning("全ての情報を入力してください。")
 
-        # Use OpenAI API
-        response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo-16k-0613",
-            messages=[
-                {"role": "system", "content": "あなたは優秀なデータサイエンティストです。全て日本語で返答してください."},
-                {"role": "user", "content": message}
-            ]
-        )
-        # Show OpenAI's response
-        st.write(response['choices'][0]['message']['content'])
-        
-# Show the cards
-N_cards_per_row = 3
-for n_row, row in df_search.iterrows():
-    i = n_row % N_cards_per_row
-    if i == 0:
-        st.write("---")
-        cols = st.columns(N_cards_per_row, gap="large")
-    # draw the card
-    with cols[i]:
-        st.caption(f"{row['地域'].strip()} - {row['対象事業者'].strip()} - {row['補助金名'].strip()}")
-        st.markdown(f"**申請期間: {row['申請期間'].strip()}**")
-        st.markdown(f {row['上限金額・助成額'].strip()}*")
-        st.markdown(f"詳細: {row['詳細'].strip()}")
-        st.markdown(f"**[リンク]({row['リンク'].strip()})**")
-        st.markdown(f"地域: {row['地域'].strip()}")
-        st.markdown(f"実施機関: {row['実施機関'].strip()}")
-        st.markdown(f"対象事業者: {row['対象事業者'].strip()}")
-        st.markdown(f"公式公募ページ: {row['公式公募ページ'].strip()}")
+# フォームの送信ボタンがクリックされた場合の処理
+if st.button("ログイン"):
+    # ユーザー名とパスワードが入力されているかをチェック
+    if username and password:
+        # データベースからユーザー情報を取得
+        cursor.execute("SELECT * FROM members WHERE username = ? AND password = ?", (username, password))
+        user = cursor.fetchone()
+
+        if user:
+            # ユーザーが見つかった場合、ログイン状態を更新
+            logged_in = True
+            st.success("ログインに成功しました！")
+        else:
+            st.warning("ユーザー名またはパスワードが正しくありません。")
+    else:
+        st.warning("ユーザー名とパスワードを入力してください。")
+
+# ログイン状態を表示
+if logged_in:
+    st.write("ログイン済みです。")
+
+# データベースとの接続を閉じる
+conn.close()
+
