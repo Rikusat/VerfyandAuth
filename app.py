@@ -1,64 +1,39 @@
-import streamlit as st
-import sqlite3
+from langchain.agents import create_pandas_dataframe_agent
+from langchain.chat_models import ChatOpenAI
+from langchain.agents.agent_types import AgentType
+import pandas as pd
 
-# データベースに接続
-conn = sqlite3.connect('members.db')
-cursor = conn.cursor()
+# Correct the formation of the URL
+sheet_id = "1PmOf1bjCpLGm7DiF7dJsuKBne2XWkmHyo20BS4xgizw"
+sheet_name = "charlas"
+url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet={sheet_name}"
 
-# テーブルの作成
-cursor.execute('''
-    CREATE TABLE IF NOT EXISTS members (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        username TEXT NOT NULL,
-        password TEXT NOT NULL,
-        email TEXT NOT NULL
-    )
-''')
-conn.commit()
+# Read the data from the URL and perform data cleaning
+df = pd.read_csv(url, dtype=str).fillna("")
 
-# ユーザー情報の入力フォームを作成
-username = st.text_input("ユーザー名")
-password = st.text_input("パスワード", type="password")
-email = st.text_input("メールアドレス")
+# Create a Pandas Dataframe Agent
+agent = create_pandas_dataframe_agent(df)
 
-# ログイン状態を保持する変数
-logged_in = False
+# Create a ChatOpenAI agent
+chat_agent = ChatOpenAI(
+    langchain_agent=agent,
+    model_name="gpt-3.5-turbo-0613",
+    max_tokens=100,
+    temperature=0.6
+)
 
-# フォームの送信ボタンがクリックされた場合の処理
-if st.button("登録"):
-    if username and password and email:
-        # データの挿入
-        cursor.execute('''
-            INSERT INTO members (username, password, email)
-            VALUES (?, ?, ?)
-        ''', (username, password, email))
-        conn.commit()
+# Function to interact with the chatbot
+def chat_with_bot(user_input):
+    # Generate a response from the chatbot
+    response = chat_agent.reply(user_input)
+    return response
 
-        st.success("登録が完了しました！")
-    else:
-        st.warning("全ての情報を入力してください。")
-
-# フォームの送信ボタンがクリックされた場合の処理
-if st.button("ログイン"):
-    # ユーザー名とパスワードが入力されているかをチェック
-    if username and password:
-        # データベースからユーザー情報を取得
-        cursor.execute("SELECT * FROM members WHERE username = ? AND password = ?", (username, password))
-        user = cursor.fetchone()
-
-        if user:
-            # ユーザーが見つかった場合、ログイン状態を更新
-            logged_in = True
-            st.success("ログインに成功しました！")
-        else:
-            st.warning("ユーザー名またはパスワードが正しくありません。")
-    else:
-        st.warning("ユーザー名とパスワードを入力してください。")
-
-# ログイン状態を表示
-if logged_in:
-    st.write("ログイン済みです。")
-
-# データベースとの接続を閉じる
-conn.close()
+# Chat loop
+print("Chat with the bot. Enter 'exit' to end the conversation.")
+while True:
+    user_input = input("User: ")
+    if user_input.lower() == "exit":
+        break
+    bot_response = chat_with_bot(user_input)
+    print("Bot:", bot_response)
 
