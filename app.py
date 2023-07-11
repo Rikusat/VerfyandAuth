@@ -1,8 +1,4 @@
-import streamlit as st
-from langchain.agents import create_pandas_dataframe_agent
-from langchain.chat_models import ChatOpenAI
-from langchain.agents.agent_types import AgentType
-import pandas as pd
+
 
 # Correct the formation of the URL
 sheet_id = "1PmOf1bjCpLGm7DiF7dJsuKBne2XWkmHyo20BS4xgizw"
