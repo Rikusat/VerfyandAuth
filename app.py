@@ -1,3 +1,4 @@
+import streamlit as st
 from langchain.agents import create_pandas_dataframe_agent
 from langchain.chat_models import ChatOpenAI
 from langchain.agents.agent_types import AgentType
@@ -28,12 +29,24 @@ def chat_with_bot(user_input):
     response = chat_agent.reply(user_input)
     return response
 
-# Chat loop
-print("Chat with the bot. Enter 'exit' to end the conversation.")
-while True:
-    user_input = input("User: ")
-    if user_input.lower() == "exit":
-        break
-    bot_response = chat_with_bot(user_input)
-    print("Bot:", bot_response)
+# Streamlit app
+def main():
+    # Set Streamlit page title
+    st.set_page_config(page_title="CSV Chatbot")
 
+    # Display title and instructions
+    st.title("CSV Chatbot")
+    st.markdown("Enter your question and the chatbot will provide a response based on the CSV data.")
+
+    # User input textbox
+    user_input = st.text_input("User Input")
+
+    # Chatbot response
+    if st.button("Ask"):
+        if user_input:
+            bot_response = chat_with_bot(user_input)
+            st.text_area("Chatbot Response", value=bot_response, height=200)
+
+# Run the Streamlit app
+if __name__ == "__main__":
+    main()
