@@ -1,4 +1,5 @@
-
+import streamlit as st
+import pandas as pd
 
 # Correct the formation of the URL
 sheet_id = "1PmOf1bjCpLGm7DiF7dJsuKBne2XWkmHyo20BS4xgizw"
@@ -6,24 +7,12 @@ sheet_name = "charlas"
 url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet={sheet_name}"
 
 # Read the data from the URL and perform data cleaning
-df = pd.read_csv(url, dtype=str).fillna("")
+df = pd.read_csv(url)
 
-# Create a Pandas Dataframe Agent
-agent = create_pandas_dataframe_agent(df)
-
-# Create a ChatOpenAI agent
-chat_agent = ChatOpenAI(
-    langchain_agent=agent,
-    model_name="gpt-3.5-turbo-0613",
-    max_tokens=100,
-    temperature=0.6
-)
-
-# Function to interact with the chatbot
-def chat_with_bot(user_input):
-    # Generate a response from the chatbot
-    response = chat_agent.reply(user_input)
-    return response
+# Function to filter data based on user input
+def filter_data(user_input):
+    filtered_df = df[df["対象事業者"].str.contains(user_input)]
+    return filtered_df
 
 # Streamlit app
 def main():
@@ -32,16 +21,16 @@ def main():
 
     # Display title and instructions
     st.title("CSV Chatbot")
-    st.markdown("Enter your question and the chatbot will provide a response based on the CSV data.")
+    st.markdown("Enter a keyword to search for matching data in the CSV.")
 
     # User input textbox
-    user_input = st.text_input("User Input")
+    user_input = st.text_input("Enter a keyword")
 
-    # Chatbot response
-    if st.button("Ask"):
+    # Filter and display the data
+    if st.button("Search"):
         if user_input:
-            bot_response = chat_with_bot(user_input)
-            st.text_area("Chatbot Response", value=bot_response, height=200)
+            filtered_data = filter_data(user_input)
+            st.dataframe(filtered_data)
 
 # Run the Streamlit app
 if __name__ == "__main__":
